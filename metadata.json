@@ -1,0 +1,5 @@
+{
+  "name": "Vercel Project Hub",
+  "description": "A centralized dashboard to manage and view multiple Vercel deployments in a single interface with tabbed navigation.",
+  "requestFramePermissions": []
+}
