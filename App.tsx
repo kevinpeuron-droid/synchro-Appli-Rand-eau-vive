@@ -1,201 +1,155 @@
 import React, { useState, useEffect } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { ProjectView } from './components/ProjectView';
-import { Modal } from './components/Modal';
-import { Button } from './components/Button';
-import { Project } from './types';
-import { Plus, Menu, X, Layout } from 'lucide-react';
+import { Site, SiteCategory } from './types';
+import { SiteCard } from './components/SiteCard';
+import { AddSiteModal } from './components/AddSiteModal';
+import { Plus, Search, Command, Activity } from 'lucide-react';
 
-const LOCAL_STORAGE_KEY = 'vercel-hub-projects';
+const LOCAL_STORAGE_KEY = 'vercel-hub-sites-v2';
 
-const App: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+const INITIAL_DATA: Site[] = [
+  { id: '1', name: 'Vercel Platform', url: 'https://vercel.com', category: 'portal', createdAt: Date.now() },
+  { id: '2', name: 'GitHub Repo', url: 'https://github.com', category: 'tool', createdAt: Date.now() },
+  { id: '3', name: 'Stripe Dashboard', url: 'https://stripe.com', category: 'tool', createdAt: Date.now() },
+];
+
+const TABS: { id: SiteCategory | 'all'; label: string }[] = [
+  { id: 'all', label: 'Vue d\'ensemble' },
+  { id: 'portal', label: 'Portails' },
+  { id: 'tool', label: 'Outils' },
+  { id: 'doc', label: 'Documentation' },
+];
+
+function App() {
+  const [sites, setSites] = useState<Site[]>([]);
+  const [activeTab, setActiveTab] = useState<SiteCategory | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mounted, setMounted] = useState(false);
 
-  // Form state
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectUrl, setNewProjectUrl] = useState('');
-  const [error, setError] = useState('');
-
-  // Load from local storage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setProjects(parsed);
-        if (parsed.length > 0) {
-          setActiveProjectId(parsed[0].id);
-        }
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (stored) {
+      try { 
+        setSites(JSON.parse(stored)); 
+      } catch (e) { 
+        setSites(INITIAL_DATA); 
       }
-    } catch (e) {
-      console.error("Failed to load projects", e);
+    } else { 
+      setSites(INITIAL_DATA); 
     }
+    setMounted(true);
   }, []);
 
-  // Save to local storage whenever projects change
   useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects));
-  }, [projects]);
-
-  const handleAddProject = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newProjectName.trim() || !newProjectUrl.trim()) {
-      setError('Veuillez remplir tous les champs');
-      return;
+    if (mounted) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sites));
     }
+  }, [sites, mounted]);
 
-    let formattedUrl = newProjectUrl;
-    if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
-      formattedUrl = `https://${formattedUrl}`;
-    }
-
-    const newProject: Project = {
-      id: crypto.randomUUID(),
-      name: newProjectName,
-      url: formattedUrl,
-      createdAt: Date.now()
-    };
-
-    setProjects([...projects, newProject]);
-    setActiveProjectId(newProject.id);
-    
-    // Reset form
-    setNewProjectName('');
-    setNewProjectUrl('');
-    setError('');
-    setIsModalOpen(false);
+  const handleAddSite = (newSiteData: Omit<Site, 'id' | 'createdAt'>) => {
+    setSites(prev => [{ ...newSiteData, id: crypto.randomUUID(), createdAt: Date.now() }, ...prev]);
   };
 
-  const handleDeleteProject = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-      const remaining = projects.filter(p => p.id !== id);
-      setProjects(remaining);
-      if (activeProjectId === id) {
-        setActiveProjectId(remaining.length > 0 ? remaining[0].id : null);
-      }
-    }
+  const handleDeleteSite = (id: string) => {
+    setSites(prev => prev.filter(site => site.id !== id));
   };
 
-  const activeProject = projects.find(p => p.id === activeProjectId);
+  const filteredSites = sites.filter(site => {
+    const matchesSearch = site.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          site.url.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTab = activeTab === 'all' || site.category === activeTab;
+    return matchesSearch && matchesTab;
+  });
 
   return (
-    <div className="flex h-screen w-full bg-background text-slate-200">
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/80 md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-           <div className="w-64 h-full bg-surface border-r border-border p-4" onClick={e => e.stopPropagation()}>
-             <div className="flex justify-between items-center mb-6">
-                <h2 className="font-bold">Menu</h2>
-                <button onClick={() => setIsMobileMenuOpen(false)}><X /></button>
-             </div>
-             <div className="space-y-2">
-                {projects.map(p => (
-                   <button 
-                     key={p.id}
-                     onClick={() => { setActiveProjectId(p.id); setIsMobileMenuOpen(false); }}
-                     className={`w-full text-left px-3 py-2 rounded-md ${activeProjectId === p.id ? 'bg-slate-800 text-white' : 'text-slate-400'}`}
-                   >
-                     {p.name}
-                   </button>
-                ))}
-                <button 
-                  onClick={() => { setIsModalOpen(true); setIsMobileMenuOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-primary mt-4 border border-dashed border-border rounded-md justify-center"
-                >
-                  <Plus size={16} /> Ajouter
-                </button>
-             </div>
-           </div>
-        </div>
-      )}
+    <div className="relative min-h-screen">
+      {/* Background FX */}
+      <div className="spotlight" />
+      <div className="vignette" />
 
-      {/* Desktop Sidebar */}
-      <Sidebar 
-        projects={projects}
-        activeProjectId={activeProjectId}
-        onSelectProject={setActiveProjectId}
-        onAddProject={() => setIsModalOpen(true)}
-        onDeleteProject={handleDeleteProject}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full min-w-0">
-        {/* Mobile Header */}
-        <div className="md:hidden h-14 border-b border-border bg-surface flex items-center justify-between px-4 shrink-0">
-           <div className="flex items-center gap-3">
-              <button onClick={() => setIsMobileMenuOpen(true)} className="p-1">
-                <Menu className="w-5 h-5 text-slate-300" />
-              </button>
-              <h1 className="font-bold">Vercel Hub</h1>
-           </div>
-        </div>
-
-        {activeProject ? (
-          <ProjectView project={activeProject} />
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background">
-            <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mb-6 border border-border">
-              <Layout className="w-8 h-8 text-slate-400" />
+      <div className="max-w-6xl mx-auto px-6 py-12 relative z-10">
+        
+        {/* Top Navigation */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+              <Activity className="w-5 h-5 text-black" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-100 mb-2">Bienvenue sur votre Dashboard</h2>
-            <p className="text-slate-400 max-w-md mb-8">
-              Centralisez tous vos déploiements Vercel en un seul endroit. Ajoutez votre premier lien pour commencer.
-            </p>
-            <Button onClick={() => setIsModalOpen(true)} icon={<Plus className="w-4 h-4" />}>
-              Ajouter un projet
-            </Button>
+            <span className="font-semibold text-lg tracking-tight text-white">Hub.</span>
           </div>
-        )}
-      </div>
 
-      {/* Add Project Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Ajouter un projet">
-        <form onSubmit={handleAddProject} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Nom du projet</label>
-            <input
-              type="text"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              placeholder="Ex: Mon Portfolio"
-              className="w-full bg-slate-900 border border-border rounded-md px-3 py-2 text-slate-100 focus:ring-1 focus:ring-primary outline-none"
-              autoFocus
-            />
+          <div className="flex-1 max-w-md mx-auto w-full">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600 group-focus-within:text-zinc-400 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Rechercher une ressource..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#0A0A0A] border border-zinc-800 rounded-lg py-2.5 pl-10 pr-4 text-sm text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                 <span className="text-[10px] text-zinc-700 font-mono border border-zinc-800 rounded px-1.5 py-0.5">/</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">URL Vercel</label>
-            <input
-              type="text"
-              value={newProjectUrl}
-              onChange={(e) => setNewProjectUrl(e.target.value)}
-              placeholder="Ex: https://mon-projet.vercel.app"
-              className="w-full bg-slate-900 border border-border rounded-md px-3 py-2 text-slate-100 focus:ring-1 focus:ring-primary outline-none"
-            />
-            <p className="text-xs text-slate-500 mt-1">L'URL doit commencer par http:// ou https://</p>
-          </div>
-          
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-500 text-sm p-2 rounded">
-              {error}
+
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-zinc-200 transition-colors active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nouveau</span>
+          </button>
+        </header>
+
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-8 mb-10 border-b border-zinc-900 pb-1 overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`pb-3 text-sm font-medium transition-all relative ${
+                activeTab === tab.id
+                  ? 'text-white'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-0 w-full h-[1px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Grid Area */}
+        <main className="min-h-[400px]">
+          {filteredSites.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredSites.map((site) => (
+                <SiteCard key={site.id} site={site} onDelete={handleDeleteSite} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-12 h-12 rounded-lg border border-dashed border-zinc-800 flex items-center justify-center mb-4">
+                <Command className="w-5 h-5 text-zinc-700" />
+              </div>
+              <p className="text-zinc-500 text-sm">Aucune donnée affichée.</p>
             </div>
           )}
+        </main>
+        
+        <footer className="mt-20 py-8 border-t border-zinc-900 flex justify-between items-center text-xs text-zinc-600">
+          <p>System Status: Operational</p>
+          <p className="font-mono">v3.0.0</p>
+        </footer>
+      </div>
 
-          <div className="flex justify-end gap-3 mt-6">
-            <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button type="submit">
-              Ajouter le projet
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <AddSiteModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAdd={handleAddSite} />
     </div>
   );
-};
+}
 
 export default App;

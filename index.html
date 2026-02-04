@@ -1,24 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vercel Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              background: '#09090b',
-              surface: '#18181b',
-              primary: '#3b82f6',
-              border: '#27272a'
-            }
-          }
-        }
-      }
-    </script>
   <script type="importmap">
 {
   "imports": {
@@ -30,7 +16,7 @@
 }
 </script>
 </head>
-  <body class="bg-background text-slate-200 antialiased overflow-hidden">
+  <body class="antialiased overflow-x-hidden">
     <div id="root"></div>
   </body>
 </html>
