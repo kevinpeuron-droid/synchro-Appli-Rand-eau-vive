@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Site, SiteCategory } from './types';
 import { SiteCard } from './components/SiteCard';
 import { AddSiteModal } from './components/AddSiteModal';
-import { Plus, Search, Command, Activity } from 'lucide-react';
+import { Plus, Search, Command, Activity, Zap, ShieldCheck, Globe } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'vercel-hub-sites-v2';
 
@@ -10,6 +10,27 @@ const INITIAL_DATA: Site[] = [
   { id: '1', name: 'Vercel Platform', url: 'https://vercel.com', category: 'portal', createdAt: Date.now() },
   { id: '2', name: 'GitHub Repo', url: 'https://github.com', category: 'tool', createdAt: Date.now() },
   { id: '3', name: 'Stripe Dashboard', url: 'https://stripe.com', category: 'tool', createdAt: Date.now() },
+];
+
+const RECOMMENDATIONS = [
+  {
+    id: 'builds',
+    title: 'Builds Simultanés',
+    desc: 'Ne jamais attendre une file d\'attente. Lancez plusieurs déploiements en parallèle pour gagner jusqu\'à 40% de temps.',
+    icon: <Zap className="w-5 h-5 text-amber-400" />
+  },
+  {
+    id: 'skew',
+    title: 'Skew Protection',
+    desc: 'Évitez les conflits Frontend-Backend. Synchronisation automatique des versions client et serveur.',
+    icon: <ShieldCheck className="w-5 h-5 text-emerald-400" />
+  },
+  {
+    id: 'domain',
+    title: 'Domaines Personnalisés',
+    desc: 'Acquérez un domaine privé et rapide. Configuration DNS automatique et certificats SSL gérés.',
+    icon: <Globe className="w-5 h-5 text-blue-400" />
+  }
 ];
 
 const TABS: { id: SiteCategory | 'all'; label: string }[] = [
@@ -47,7 +68,12 @@ function App() {
   }, [sites, mounted]);
 
   const handleAddSite = (newSiteData: Omit<Site, 'id' | 'createdAt'>) => {
-    setSites(prev => [{ ...newSiteData, id: crypto.randomUUID(), createdAt: Date.now() }, ...prev]);
+    // Fallback ID generation to avoid crypto.randomUUID crashes in non-secure contexts
+    const newId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : Date.now().toString(36) + Math.random().toString(36).substr(2);
+      
+    setSites(prev => [{ ...newSiteData, id: newId, createdAt: Date.now() }, ...prev]);
   };
 
   const handleDeleteSite = (id: string) => {
@@ -72,7 +98,7 @@ function App() {
         {/* Top Navigation */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-16">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)]">
               <Activity className="w-5 h-5 text-black" />
             </div>
             <span className="font-semibold text-lg tracking-tight text-white">Hub.</span>
@@ -96,7 +122,7 @@ function App() {
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-zinc-200 transition-colors active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-zinc-200 transition-colors active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
           >
             <Plus className="w-4 h-4" />
             <span>Nouveau</span>
@@ -109,7 +135,7 @@ function App() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 text-sm font-medium transition-all relative ${
+              className={`pb-3 text-sm font-medium transition-all relative whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'text-white'
                   : 'text-zinc-500 hover:text-zinc-300'
@@ -123,27 +149,63 @@ function App() {
           ))}
         </div>
 
-        {/* Grid Area */}
-        <main className="min-h-[400px]">
+        {/* Main Grid Area */}
+        <main className="min-h-[300px] mb-16">
           {filteredSites.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {filteredSites.map((site) => (
                 <SiteCard key={site.id} site={site} onDelete={handleDeleteSite} />
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-12 h-12 rounded-lg border border-dashed border-zinc-800 flex items-center justify-center mb-4">
-                <Command className="w-5 h-5 text-zinc-700" />
+            <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-12 h-12 rounded-lg border border-dashed border-zinc-800 flex items-center justify-center mb-4 bg-zinc-900/50">
+                <Command className="w-5 h-5 text-zinc-600" />
               </div>
-              <p className="text-zinc-500 text-sm">Aucune donnée affichée.</p>
+              <p className="text-zinc-500 text-sm">Aucune ressource trouvée pour cette catégorie.</p>
+              <button onClick={() => setIsModalOpen(true)} className="text-zinc-400 hover:text-white text-xs mt-2 border-b border-zinc-800 hover:border-white transition-colors pb-0.5">
+                Ajouter un nouveau lien
+              </button>
             </div>
           )}
         </main>
+
+        {/* Recommendations Section */}
+        <section className="border-t border-zinc-900 pt-10">
+          <div className="flex items-center gap-2 mb-6">
+            <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Optimisations Vercel</h3>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-900 text-zinc-500 border border-zinc-800">PRO TIPS</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {RECOMMENDATIONS.map((rec) => (
+              <div key={rec.id} className="group p-5 rounded-xl border border-zinc-800 bg-[#0A0A0A] hover:border-zinc-700 transition-all duration-300 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="flex items-start gap-4 relative z-10">
+                  <div className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 group-hover:bg-zinc-800 transition-colors">
+                    {rec.icon}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-zinc-200 mb-1.5 group-hover:text-white transition-colors">
+                      {rec.title}
+                    </h4>
+                    <p className="text-xs text-zinc-500 leading-relaxed group-hover:text-zinc-400 transition-colors">
+                      {rec.desc}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
         
-        <footer className="mt-20 py-8 border-t border-zinc-900 flex justify-between items-center text-xs text-zinc-600">
-          <p>System Status: Operational</p>
-          <p className="font-mono">v3.0.0</p>
+        <footer className="mt-20 flex justify-between items-center text-[10px] text-zinc-700 uppercase tracking-widest font-mono">
+          <div className="flex gap-4">
+             <span>Status: Operational</span>
+             <span>Region: iad1</span>
+          </div>
+          <p>Vercel Hub v3.1</p>
         </footer>
       </div>
 
